@@ -1,0 +1,44 @@
+{
+  "fortbildungen": [
+    {
+      "titel": "Java Basics",
+      "kategorie": "Programmierung",
+      "datum": "2025-03-15",
+      "ort": "Berlin",
+      "level": "Einsteiger"
+    },
+    {
+      "titel": "Python Advanced",
+      "kategorie": "Datenanalyse",
+      "datum": "2025-05-20",
+      "ort": "Hamburg",
+      "level": "Fortgeschritten"
+    },
+    {
+      "titel": "Projektmanagement",
+      "kategorie": "Management",
+      "datum": "2025-04-10",
+      "ort": "München",
+      "level": "Einsteiger"
+    }
+  ],
+
+  "urlaubstage": {
+    "Herr Odebrecht": 12
+  },
+
+  "datenschutz": "Wir erfüllen die DSGVO. Keine sensiblen Daten werden gespeichert oder an Dritte weitergegeben",
+
+  "ansprechpartner": [
+    {
+      "abteilung": "IT",
+      "name": "Max Mustermann",
+      "email": "max@beispiel.de"
+    },
+    {
+      "abteilung": "HR",
+      "name": "Anna Schmidt",
+      "email": "anna@beispiel.de"
+    }
+  ]
+}
