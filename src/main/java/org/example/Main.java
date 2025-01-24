@@ -60,7 +60,7 @@ public class Main {
                 return getFortbildungen();
             case "urlaubstag":
             case "urlaub":
-                return getUrlaubstage();
+                return getUrlaubstage() + "\n" + getUrlaubsantragHinweis();
             case "ansprechpartner":
             case "kontakt":
                 // Überprüfe die Abteilung separat
@@ -154,6 +154,10 @@ public class Main {
             response.append(String.format("- %s: %d Tage%n", mitarbeiter, verbleibend));
         }
         return response.toString();
+    }
+
+    private static String getUrlaubsantragHinweis() {
+        return data.get("urlaubsantrag_hinweis").getAsString();
     }
 
     private static String getAnsprechpartner(String abteilungFilter) {
