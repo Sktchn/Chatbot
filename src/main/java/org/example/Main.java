@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import opennlp.tools.tokenize.SimpleTokenizer;
 
 import java.io.InputStream;
 import java.io.FileNotFoundException;
@@ -11,6 +12,7 @@ import java.util.Scanner;
 
 public class Main {
     private static JsonObject data; // JSON-Daten für den Chatbot
+    private static final SimpleTokenizer tokenizer = SimpleTokenizer.INSTANCE; // NLP-Tokenisierung
 
     public static void main(String[] args) {
         try (InputStream inputStream = Main.class.getResourceAsStream("/chatbot_data.json")) {
@@ -47,9 +49,12 @@ public class Main {
     }
 
     private static String generateResponse(String input) {
-        // Schlüsselwörter, die erkannt werden sollen
+        // NLP: Tokenisiere den Satz
+        String[] tokens = tokenizer.tokenize(input);
+
+        // Liste der Schlüsselwörter für Typo-Toleranz
         String[] keywords = {"fortbildung", "urlaubstag", "urlaub", "ansprechpartner", "kontakt", "datenschutz"};
-        String matchedKeyword = findClosestKeyword(input, keywords);
+        String matchedKeyword = findClosestKeyword(tokens, keywords);
 
         if (matchedKeyword == null) {
             return "Das habe ich nicht verstanden. Können Sie Ihre Frage anders formulieren?";
@@ -60,13 +65,10 @@ public class Main {
                 return getFortbildungen();
             case "urlaubstag":
             case "urlaub":
-                return getUrlaubstage() + "\n" + getUrlaubsantragHinweis();
+                return getUrlaubstage();
             case "ansprechpartner":
             case "kontakt":
-                // Überprüfe die Abteilung separat
-                String department = extractDepartment(input);
-
-                // Gib Ansprechpartner basierend auf der Abteilung zurück
+                String department = extractDepartment(tokens);
                 return getAnsprechpartner(department);
             case "datenschutz":
                 return data.get("datenschutz").getAsString();
@@ -75,23 +77,30 @@ public class Main {
         }
     }
 
-    private static String extractDepartment(String input) {
-        // JSON-Daten durchsuchen, um Abteilungen zu extrahieren
-        JsonArray ansprechpartner = data.getAsJsonArray("ansprechpartner");
+    private static String extractDepartment(String[] tokens) {
+        // Liste der möglichen Abteilungen
+        String[] departments = {"IT", "HR", "Finanzen"};
 
-        for (JsonElement element : ansprechpartner) {
-            JsonObject person = element.getAsJsonObject();
-            String department = person.get("abteilung").getAsString().toLowerCase();
+        // Suche nach der nächsten Übereinstimmung (Typo-Toleranz beachten)
+        return findClosestKeyword(tokens, departments);
+    }
 
-            // Prüfe, ob die Eingabe die Abteilung enthält
-            if (input.toLowerCase().contains(department)) {
-                return department;
+    private static String findClosestKeyword(String[] tokens, String[] keywords) {
+        String closestKeyword = null;
+        int minDistance = Integer.MAX_VALUE;
+
+        for (String token : tokens) {
+            for (String keyword : keywords) {
+                int distance = levenshteinDistance(token.toLowerCase(), keyword.toLowerCase());
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestKeyword = keyword;
+                }
             }
         }
 
-        // Wenn keine exakte Übereinstimmung, Typo-Toleranz verwenden
-        String[] departments = {"IT", "HR", "Finanzen"}; // Alternativ direkt aus der JSON lesen
-        return findClosestKeyword(input, departments);
+        // Maximale Toleranz: Schlüsselwort muss mindestens ähnlich sein
+        return (minDistance <= 2) ? closestKeyword : null;
     }
 
     private static int levenshteinDistance(String s1, String s2) {
@@ -114,22 +123,6 @@ public class Main {
         return dp[s1.length()][s2.length()];
     }
 
-    private static String findClosestKeyword(String input, String[] keywords) {
-        String closestKeyword = null;
-        int minDistance = Integer.MAX_VALUE;
-
-        for (String keyword : keywords) {
-            int distance = levenshteinDistance(input.toLowerCase(), keyword.toLowerCase());
-            if (distance < minDistance) {
-                minDistance = distance;
-                closestKeyword = keyword;
-            }
-        }
-
-        // Maximale Toleranz: Schlüsselwort muss mindestens ähnlich sein
-        return (minDistance <= 2) ? closestKeyword : null;
-    }
-
     private static String getFortbildungen() {
         JsonArray fortbildungen = data.getAsJsonArray("fortbildungen");
         StringBuilder response = new StringBuilder("Hier sind die verfügbaren Fortbildungen:\n");
@@ -149,15 +142,11 @@ public class Main {
         JsonObject urlaubstage = data.getAsJsonObject("urlaubstage");
         StringBuilder response = new StringBuilder("Ihre verbleibenden Urlaubstage:\n");
         for (String mitarbeiter : urlaubstage.keySet()) {
-            // Hole den Wert als JsonPrimitive und konvertiere ihn zu einer Zahl
             int verbleibend = urlaubstage.get(mitarbeiter).getAsInt();
             response.append(String.format("- %s: %d Tage%n", mitarbeiter, verbleibend));
         }
+        response.append("\nEinen Urlaubsantrag können Sie in der HR einreichen.");
         return response.toString();
-    }
-
-    private static String getUrlaubsantragHinweis() {
-        return data.get("urlaubsantrag_hinweis").getAsString();
     }
 
     private static String getAnsprechpartner(String abteilungFilter) {
@@ -168,7 +157,6 @@ public class Main {
             JsonObject person = element.getAsJsonObject();
             String abteilung = person.get("abteilung").getAsString();
 
-            // Prüfe, ob ein Filter gesetzt ist und ob die Abteilung übereinstimmt
             if (abteilungFilter == null || abteilung.equalsIgnoreCase(abteilungFilter)) {
                 response.append(String.format("- Abteilung: %s, Name: %s, E-Mail: %s%n",
                         abteilung,
@@ -177,7 +165,6 @@ public class Main {
             }
         }
 
-        // Wenn keine Ergebnisse gefunden wurden, gib eine entsprechende Nachricht zurück
         if (response.length() == 0) {
             return "Keine Ansprechpartner für die angegebene Abteilung gefunden.";
         }
